@@ -1,73 +1,122 @@
-#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <climits>
-
+#include<iostream>
+#include<vector>
+#include<algorithm>
 using namespace std;
 
-// Function to calculate the minimum walking distance for all fishermen
-int minDistance(vector<int>& gatePosition, vector<int>& menCount, int n) {
-    int minDist = INT_MAX; // Initialize the minimum distance to a very large value
-    
-    // Calculate the last possible starting positions for each gate
-    int first_gate_last_start = n - menCount[0] - menCount[1] - menCount[2] + 1; 
-    int second_gate_last_start = first_gate_last_start + menCount[0]; 
-    int third_gate_last_start = second_gate_last_start + menCount[1]; 
+int totalPositions;         // Total number of positions
+int gatePositions[3];       // Positions of the 3 gates (1-based index)
+int menCount[3];            // Number of men for each gate
+vector<bool> visited;       // A vector to mark positions as visited
 
-    // Iterate over all possible starting positions for gate 1
-    for (int i = 1; i <= first_gate_last_start; i++) {
-        // Iterate over all possible starting positions for gate 2
-        for (int j = i + menCount[0]; j <= second_gate_last_start; j++) {
-            // Iterate over all possible starting positions for gate 3
-            for (int k = j + menCount[1]; k <= third_gate_last_start; k++) {
-                int dist = 0; // Initialize the total distance for the current configuration
-                
-                // Calculate the distance for fishermen at gate 1
-                for (int m = i; m < i + menCount[0]; m++) {
-                    int gate1_cost = abs(gatePosition[0] - m) + 1; // Distance from gate 1 to spot m
-                    dist += gate1_cost; 
-                }
+// Function to find the distance to the nearest unvisited position on the left of position i
+int findLeftDistance(int position)
+{
+    if(position > -1)
+    {
+        int distance = 0;
+        for(int j = position; j > -1; j--)
+        {
+            distance++;               // Increment distance
+            if(!visited[j])           // If an unvisited position is found
+                return distance;       // Return the distance
+        }
+    }
+    return INT_MAX;                   // Return a large value if no unvisited position is found
+}
 
-                // Calculate the distance for fishermen at gate 2
-                for (int m = j; m < j + menCount[1]; m++) {
-                    int gate2_cost = abs(gatePosition[1] - m) + 1; // Distance from gate 2 to spot m
-                    dist += gate2_cost; 
-                }
+// Function to find the distance to the nearest unvisited position on the right of position i
+int findRightDistance(int position)
+{
+    if(position < totalPositions)
+    {
+        int distance = 0;
+        for(int j = position; j < totalPositions; j++)
+        {
+            distance++;               // Increment distance
+            if(!visited[j])           // If an unvisited position is found
+                return distance;       // Return the distance
+        }
+    }
+    return INT_MAX;                   // Return a large value if no unvisited position is found
+}
 
-                // Calculate the distance for fishermen at gate 3
-                for (int m = k; m < k + menCount[2]; m++) {
-                    int gate3_cost = abs(gatePosition[2] - m) + 1; // Distance from gate 3 to spot m
-                    dist += gate3_cost; 
-                }
+// Function to calculate the distance for all men assigned to a specific gate
+int calculateGateDistance(int gate)
+{
+    int position = gatePositions[gate] - 1;  // Convert to 0-based index
+    int totalDistance = 0;                   // Total distance for men at this gate
 
-                // Update the minimum distance if the current configuration is better
-                minDist = min(minDist, dist); 
+    for(int i = 0; i < menCount[gate]; i++)
+    {
+        if(!visited[position])               // If the current position is unvisited
+        {
+            totalDistance++;                 // Increment distance by 1
+            visited[position] = true;        // Mark the position as visited
+        }
+        else                                 // If the current position is already visited
+        {
+            int leftDist = findLeftDistance(position - 1);  // Distance to the nearest unvisited position on the left
+            int rightDist = findRightDistance(position + 1); // Distance to the nearest unvisited position on the right
+
+            if(leftDist < rightDist)                        // Choose the closer position
+            {
+                totalDistance += leftDist + 1;              // Add distance to total
+                if(position - leftDist > -1)
+                    visited[position - leftDist] = true;    // Mark the left position as visited
+            } 
+            else 
+            {
+                totalDistance += rightDist + 1;             // Add distance to total
+                if(position + rightDist < totalPositions)
+                    visited[position + rightDist] = true;   // Mark the right position as visited
             }
         }
     }
-
-    return minDist; // Return the minimum distance found
+    return totalDistance;                     // Return the total distance for this gate
 }
 
-int main() {
-    int n; 
-    cin >> n; // Input the number of fishing spots
+// Function to calculate the total distance for a given order of gate processing
+int calculateTotalDistance(vector<int>& order)
+{
+    int totalDistance = 0;                        // Total distance for the current order
+    visited = vector<bool>(totalPositions, false); // Reset the visited positions for each combination
 
-    vector<int> gatePosition(3); // Positions of the three gates
-    vector<int> menCount(3);     // Number of fishermen at each gate
+    for(int i = 0; i < order.size(); i++)
+        totalDistance += calculateGateDistance(order[i]); // Calculate distance for each gate in the current order
 
-    // Input gate positions
-    for (int i = 0; i < 3; i++) {
-        cin >> gatePosition[i]; 
+    return totalDistance;                         // Return the total distance for this order
+}
+
+int main()
+{
+    ios::sync_with_stdio(false);        // Optimize input/output
+    cin.tie(0);
+
+    cin >> totalPositions;              // Read the total number of positions
+
+    for(int i = 0; i < 3; i++)
+        cin >> gatePositions[i];        // Read positions of the 3 gates
+
+    for(int i = 0; i < 3; i++)
+        cin >> menCount[i];             // Read the number of men for each gate
+
+    vector<vector<int>> gateOrders = {  // All possible orders of processing the gates
+        {0, 1, 2},
+        {1, 2, 0},
+        {2, 0, 1},
+        {2, 1, 0},
+        {0, 2, 1},
+        {1, 0, 2}
+    };
+
+    int minDistance = INT_MAX;          // Initialize minimum distance with a large value
+
+    for(int i = 0; i < gateOrders.size(); i++) 
+    {
+        int currentDistance = calculateTotalDistance(gateOrders[i]); // Calculate distance for the current combination
+        minDistance = min(minDistance, currentDistance);  // Update the minimum distance if the current one is smaller
+        cout << i << " " << minDistance << endl;          // Print the combination index and the minimum distance so far
     }
 
-    // Input the number of fishermen at each gate
-    for (int i = 0; i < 3; i++) {
-        cin >> menCount[i]; 
-    }
-
-    // Output the minimum walking distance
-    cout << minDistance(gatePosition, menCount, n) << endl; 
-
-    return 0;
+    cout << minDistance << endl;        // Print the final minimum distance
 }
